@@ -35,32 +35,29 @@ function parseImageDataUrl(dataUrl: string) {
 async function describeWithGemini(apiKey: string, system: string, imageDataUrl: string) {
   const { mimeType, base64 } = parseImageDataUrl(imageDataUrl);
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [
-          {
-            parts: [
-              { text: "Describe what's in front of me right now." },
-              { inlineData: { mimeType, data: base64 } },
-            ],
-          },
-        ],
-      }),
-    },
-  );
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [
+        {
+          parts: [
+            { text: "Describe what's in front of me right now." },
+            { inlineData: { mimeType, data: base64 } },
+          ],
+        },
+      ],
+    }),
+  });
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     if (res.status === 429) throw new Error("Rate limited. Please wait a moment.");
-    if (res.status === 403) {
-      throw new Error("Invalid Gemini API key. Get a free key at https://aistudio.google.com/apikey");
-    }
-    throw new Error(`Vision request failed: ${res.status} ${text}`);
+    if (res.status === 403) throw new Error("Invalid Gemini API key.");
+    throw new Error(`Gemini error ${res.status}: ${text.slice(0, 150)}`);
   }
 
   const json = (await res.json()) as {
@@ -69,23 +66,26 @@ async function describeWithGemini(apiKey: string, system: string, imageDataUrl: 
   return json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim() ?? "";
 }
 
-async function describeWithLovable(apiKey: string, system: string, imageDataUrl: string) {
-  const userContent: Array<Record<string, unknown>> = [
-    { type: "text", text: "Describe what's in front of me right now." },
-    { type: "image_url", image_url: { url: imageDataUrl } },
-  ];
-
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+// Groq — free tier with vision, no credit card needed.
+// Get a free key at console.groq.com → API Keys
+async function describeWithGroq(apiKey: string, system: string, imageDataUrl: string) {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Lovable-API-Key": apiKey,
+      "Authorization": `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
       messages: [
         { role: "system", content: system },
-        { role: "user", content: userContent },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Describe what's in front of me right now." },
+            { type: "image_url", image_url: { url: imageDataUrl } },
+          ],
+        },
       ],
     }),
   });
@@ -93,8 +93,8 @@ async function describeWithLovable(apiKey: string, system: string, imageDataUrl:
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     if (res.status === 429) throw new Error("Rate limited. Please wait a moment.");
-    if (res.status === 402) throw new Error("AI credits exhausted. Please add credits in your workspace.");
-    throw new Error(`Vision request failed: ${res.status} ${text}`);
+    if (res.status === 401) throw new Error("Invalid Groq API key.");
+    throw new Error(`Groq error ${res.status}: ${text.slice(0, 150)}`);
   }
 
   const json = (await res.json()) as {
@@ -107,18 +107,19 @@ export const describeScene = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data }) => {
     const geminiKey = process.env.GEMINI_API_KEY;
-    const lovableKey = process.env.LOVABLE_API_KEY;
+    const groqKey = process.env.GROQ_API_KEY;
 
-    if (!geminiKey && !lovableKey) {
+    if (!geminiKey && !groqKey) {
       throw new Error(
-        "No AI API key configured. Add a free GEMINI_API_KEY to .env.local — get one at https://aistudio.google.com/apikey",
+        "No API key configured. Add GROQ_API_KEY (free at console.groq.com) or GEMINI_API_KEY to .env.local",
       );
     }
 
     const system = buildSystemPrompt(data.knownPeople);
-    const text = geminiKey
-      ? await describeWithGemini(geminiKey, system, data.imageDataUrl)
-      : await describeWithLovable(lovableKey!, system, data.imageDataUrl);
 
-    return { text };
+    if (groqKey) {
+      return { text: await describeWithGroq(groqKey, system, data.imageDataUrl) };
+    }
+
+    return { text: await describeWithGemini(geminiKey!, system, data.imageDataUrl) };
   });
