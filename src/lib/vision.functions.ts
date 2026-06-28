@@ -106,8 +106,9 @@ async function describeWithGroq(apiKey: string, system: string, imageDataUrl: st
 export const describeScene = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data }) => {
-    const geminiKey = process.env.GEMINI_API_KEY;
-    const groqKey = process.env.GROQ_API_KEY;
+    const cfEnv = (globalThis as unknown as { __CF_ENV?: Record<string, string> }).__CF_ENV ?? {};
+    const geminiKey = cfEnv.GEMINI_API_KEY ?? process.env.GEMINI_API_KEY;
+    const groqKey = cfEnv.GROQ_API_KEY ?? process.env.GROQ_API_KEY;
 
     if (!geminiKey && !groqKey) {
       throw new Error(

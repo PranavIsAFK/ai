@@ -1,5 +1,5 @@
-// Post-build patch: injects Cloudflare Worker env bindings into process.env
-// so that server functions can read process.env.GROQ_API_KEY etc. at runtime.
+// Post-build patch: stores Cloudflare Worker env bindings in globalThis.__CF_ENV
+// so server functions can read GROQ_API_KEY etc. at runtime.
 const fs = require("fs");
 const path = require("path");
 
@@ -18,12 +18,11 @@ if (content.includes(MARKER)) {
   process.exit(0);
 }
 
-// Inject Object.assign(process.env, env) at the start of the fetch handler
 const original = "var server_default = { async fetch(request, env, ctx) {\n\ttry {";
 const patched =
   "var server_default = { async fetch(request, env, ctx) {\n\t" +
   MARKER +
-  "\n\tObject.assign(process.env, env);\n\ttry {";
+  "\n\tglobalThis.__CF_ENV = env;\n\ttry {";
 
 if (!content.includes(original)) {
   console.error("patch-cf: could not find fetch handler — build output may have changed");
