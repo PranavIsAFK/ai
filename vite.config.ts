@@ -12,4 +12,12 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    // Bake env vars into the server bundle at build time.
+    // On Cloudflare, GROQ_API_KEY comes from Build Variables; locally from .env.local.
+    define: {
+      "process.env.GROQ_API_KEY": JSON.stringify(process.env.GROQ_API_KEY ?? ""),
+      "process.env.GEMINI_API_KEY": JSON.stringify(process.env.GEMINI_API_KEY ?? ""),
+    },
+  },
 });
