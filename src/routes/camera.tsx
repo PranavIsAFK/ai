@@ -20,7 +20,7 @@ export const Route = createFileRoute("/camera")({
     const router = useRouter();
     return (
       <AppShell title="See">
-        <div className="space-y-4">
+        <div className="rounded-2xl bg-destructive/10 border border-destructive/25 p-5 space-y-4">
           <p className="text-destructive font-medium">{error.message}</p>
           <button
             onClick={() => {
@@ -35,7 +35,11 @@ export const Route = createFileRoute("/camera")({
       </AppShell>
     );
   },
-  notFoundComponent: () => <AppShell title="See"><p>Not found.</p></AppShell>,
+  notFoundComponent: () => (
+    <AppShell title="See">
+      <p>Not found.</p>
+    </AppShell>
+  ),
 });
 
 function CameraPage() {
@@ -46,7 +50,7 @@ function CameraPage() {
   const [ready, setReady] = useState(false);
   const [auto, setAuto] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [lastText, setLastText] = useState<string>("Tap describe to hear what's in front of you.");
+  const [lastText, setLastText] = useState<string>("Tap Describe to hear what's in front of you.");
   const { speak, stop, speaking } = useSpeech();
 
   const startCamera = useCallback(async () => {
@@ -117,14 +121,13 @@ function CameraPage() {
     }
   }, [busy, speak]);
 
-  // Auto-describe loop: every 6s while enabled.
   useEffect(() => {
     if (!auto || !ready) return;
     let cancelled = false;
     const loop = async () => {
       while (!cancelled) {
         await captureAndDescribe();
-        await new Promise((r) => setTimeout(r, 6000));
+        await new Promise((r) => setTimeout(r, 12000));
       }
     };
     void loop();
@@ -136,68 +139,86 @@ function CameraPage() {
   return (
     <AppShell title="See">
       <div className="space-y-4">
-        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl border border-border bg-black">
+        {/* Camera view */}
+        <div
+          className={`relative aspect-[3/4] w-full max-h-[52vh] overflow-hidden rounded-2xl bg-black border transition-colors ${
+            busy ? "border-primary/50" : "border-border/30"
+          }`}
+        >
           <video ref={videoRef} muted playsInline className="absolute inset-0 size-full object-cover" />
           <canvas ref={canvasRef} className="hidden" />
+
           {!ready && !error && (
-            <div className="absolute inset-0 grid place-items-center text-muted-foreground">
-              <div className="flex flex-col items-center gap-2">
+            <div className="absolute inset-0 grid place-items-center">
+              <div className="flex flex-col items-center gap-3 text-white/60">
                 <Loader2 className="size-8 animate-spin" />
-                <span>Starting camera…</span>
+                <span className="text-sm">Starting camera…</span>
               </div>
             </div>
           )}
+
           {error && (
-            <div className="absolute inset-0 grid place-items-center p-6 text-center">
-              <div>
-                <p className="font-semibold">Camera unavailable</p>
-                <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+            <div className="absolute inset-0 grid place-items-center p-6">
+              <div className="text-center space-y-3">
+                <p className="font-semibold text-white">Camera unavailable</p>
+                <p className="text-sm text-white/60">{error}</p>
                 <button
                   onClick={() => void startCamera()}
-                  className="mt-4 rounded-xl bg-primary text-primary-foreground px-4 py-2 font-semibold"
+                  className="rounded-xl bg-primary text-primary-foreground px-5 py-2.5 font-semibold text-sm"
                 >
                   Retry
                 </button>
               </div>
             </div>
           )}
+
           {busy && (
-            <div className="absolute right-3 top-3 rounded-full bg-black/70 px-3 py-1 text-xs font-medium flex items-center gap-1.5">
-              <Loader2 className="size-3.5 animate-spin" /> Analyzing
+            <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white">
+              <Loader2 className="size-3.5 animate-spin" /> Analyzing…
+            </div>
+          )}
+
+          {auto && !busy && ready && (
+            <div className="absolute left-3 top-3 rounded-full bg-primary text-primary-foreground px-3 py-1 text-xs font-bold tracking-wide">
+              AUTO
             </div>
           )}
         </div>
 
-        <div
-          aria-live="polite"
-          className="rounded-2xl bg-card p-4 min-h-24 text-lg leading-snug"
-        >
-          {lastText}
+        {/* AI output */}
+        <div aria-live="polite" className="rounded-2xl bg-card border border-border/50 p-4">
+          <p className="text-[11px] font-semibold text-primary uppercase tracking-widest mb-2">Scene</p>
+          <p className="text-base leading-relaxed">{lastText}</p>
         </div>
 
+        {/* Primary controls */}
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => void captureAndDescribe()}
             disabled={!ready || busy}
-            className="rounded-2xl bg-primary text-primary-foreground py-5 text-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 min-h-16"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-primary text-primary-foreground py-4 text-base font-bold min-h-14 disabled:opacity-40 transition-opacity"
           >
-            <CameraIcon className="size-6" /> Describe
+            {busy ? <Loader2 className="size-5 animate-spin" /> : <CameraIcon className="size-5" />}
+            {busy ? "Analyzing" : "Describe"}
           </button>
           <button
             onClick={() => setAuto((a) => !a)}
             disabled={!ready}
-            className={`rounded-2xl py-5 text-lg font-bold flex items-center justify-center gap-2 min-h-16 ${
-              auto ? "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"
+            className={`flex items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold min-h-14 disabled:opacity-40 transition-colors ${
+              auto
+                ? "bg-destructive/15 text-destructive border border-destructive/30"
+                : "bg-secondary text-secondary-foreground"
             }`}
           >
-            {auto ? <Pause className="size-6" /> : <Play className="size-6" />}
-            {auto ? "Stop auto" : "Auto"}
+            {auto ? <Pause className="size-5" /> : <Play className="size-5" />}
+            {auto ? "Stop" : "Auto"}
           </button>
         </div>
 
+        {/* Repeat */}
         <button
           onClick={() => (speaking ? stop() : speak(lastText, { interrupt: true }))}
-          className="w-full rounded-2xl bg-accent text-accent-foreground py-4 font-semibold flex items-center justify-center gap-2 min-h-14"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-secondary text-secondary-foreground py-3.5 font-semibold min-h-12 transition-opacity active:opacity-70"
         >
           <Volume2 className="size-5" />
           {speaking ? "Stop speaking" : "Repeat aloud"}
