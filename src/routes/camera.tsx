@@ -10,9 +10,7 @@ export const Route = createFileRoute("/camera")({
   head: () => ({
     meta: [
       { title: "VisionAI — See" },
-      { name: "description", content: "Live AI scene description from your camera." },
-      { property: "og:title", content: "VisionAI — See" },
-      { property: "og:description", content: "Live AI scene description from your camera." },
+      { name: "description", content: "Live AI scene description." },
     ],
   }),
   component: CameraPage,
@@ -20,14 +18,11 @@ export const Route = createFileRoute("/camera")({
     const router = useRouter();
     return (
       <AppShell title="See">
-        <div className="rounded-2xl bg-destructive/10 border border-destructive/25 p-5 space-y-4">
-          <p className="text-destructive font-medium">{error.message}</p>
+        <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-5 space-y-4">
+          <p className="text-destructive font-medium text-sm">{error.message}</p>
           <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="rounded-xl bg-primary text-primary-foreground px-5 py-3 font-semibold"
+            onClick={() => { router.invalidate(); reset(); }}
+            className="rounded-lg bg-foreground text-background px-5 py-3 font-semibold text-sm"
           >
             Try again
           </button>
@@ -35,11 +30,6 @@ export const Route = createFileRoute("/camera")({
       </AppShell>
     );
   },
-  notFoundComponent: () => (
-    <AppShell title="See">
-      <p>Not found.</p>
-    </AppShell>
-  ),
 });
 
 function CameraPage() {
@@ -50,7 +40,7 @@ function CameraPage() {
   const [ready, setReady] = useState(false);
   const [auto, setAuto] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [lastText, setLastText] = useState<string>("Tap Describe to hear what's in front of you.");
+  const [lastText, setLastText] = useState<string>("Tap Describe to hear what's around you.");
   const { speak, stop, speaking } = useSpeech();
 
   const startCamera = useCallback(async () => {
@@ -131,27 +121,21 @@ function CameraPage() {
       }
     };
     void loop();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [auto, ready, captureAndDescribe]);
 
   return (
     <AppShell title="See">
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Camera view */}
-        <div
-          className={`relative aspect-[3/4] w-full max-h-[52vh] overflow-hidden rounded-2xl bg-black border transition-colors ${
-            busy ? "border-primary/50" : "border-border/30"
-          }`}
-        >
+        <div className="relative w-full max-h-[52vh] aspect-[3/4] overflow-hidden rounded-xl bg-black border border-border">
           <video ref={videoRef} muted playsInline className="absolute inset-0 size-full object-cover" />
           <canvas ref={canvasRef} className="hidden" />
 
           {!ready && !error && (
             <div className="absolute inset-0 grid place-items-center">
-              <div className="flex flex-col items-center gap-3 text-white/60">
-                <Loader2 className="size-8 animate-spin" />
+              <div className="flex flex-col items-center gap-3 text-white/50">
+                <Loader2 className="size-7 animate-spin" />
                 <span className="text-sm">Starting camera…</span>
               </div>
             </div>
@@ -164,7 +148,7 @@ function CameraPage() {
                 <p className="text-sm text-white/60">{error}</p>
                 <button
                   onClick={() => void startCamera()}
-                  className="rounded-xl bg-primary text-primary-foreground px-5 py-2.5 font-semibold text-sm"
+                  className="rounded-lg bg-white text-black px-5 py-2.5 font-semibold text-sm"
                 >
                   Retry
                 </button>
@@ -174,53 +158,52 @@ function CameraPage() {
 
           {busy && (
             <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white">
-              <Loader2 className="size-3.5 animate-spin" /> Analyzing…
+              <Loader2 className="size-3 animate-spin" /> Analyzing
             </div>
           )}
 
           {auto && !busy && ready && (
-            <div className="absolute left-3 top-3 rounded-full bg-primary text-primary-foreground px-3 py-1 text-xs font-bold tracking-wide">
+            <div className="absolute left-3 top-3 rounded-full bg-white/10 border border-white/20 px-3 py-1 text-xs font-semibold text-white tracking-wide">
               AUTO
             </div>
           )}
         </div>
 
         {/* AI output */}
-        <div aria-live="polite" className="rounded-2xl bg-card border border-border/50 p-4">
-          <p className="text-[11px] font-semibold text-primary uppercase tracking-widest mb-2">Scene</p>
-          <p className="text-base leading-relaxed">{lastText}</p>
+        <div aria-live="polite" className="rounded-xl bg-card border border-border p-4">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Scene</p>
+          <p className="text-sm leading-relaxed">{lastText}</p>
         </div>
 
-        {/* Primary controls */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Controls */}
+        <div className="grid grid-cols-2 gap-2.5">
           <button
             onClick={() => void captureAndDescribe()}
             disabled={!ready || busy}
-            className="flex items-center justify-center gap-2 rounded-2xl bg-primary text-primary-foreground py-4 text-base font-bold min-h-14 disabled:opacity-40 transition-opacity"
+            className="flex items-center justify-center gap-2 rounded-xl bg-foreground text-background py-4 text-sm font-bold min-h-14 disabled:opacity-30 transition-opacity"
           >
-            {busy ? <Loader2 className="size-5 animate-spin" /> : <CameraIcon className="size-5" />}
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <CameraIcon className="size-4" />}
             {busy ? "Analyzing" : "Describe"}
           </button>
           <button
             onClick={() => setAuto((a) => !a)}
             disabled={!ready}
-            className={`flex items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold min-h-14 disabled:opacity-40 transition-colors ${
+            className={`flex items-center justify-center gap-2 rounded-xl py-4 text-sm font-bold min-h-14 disabled:opacity-30 transition-colors border ${
               auto
-                ? "bg-destructive/15 text-destructive border border-destructive/30"
-                : "bg-secondary text-secondary-foreground"
+                ? "bg-destructive/10 text-destructive border-destructive/30"
+                : "bg-secondary text-foreground border-border"
             }`}
           >
-            {auto ? <Pause className="size-5" /> : <Play className="size-5" />}
-            {auto ? "Stop" : "Auto"}
+            {auto ? <Pause className="size-4" /> : <Play className="size-4" />}
+            {auto ? "Stop auto" : "Auto"}
           </button>
         </div>
 
-        {/* Repeat */}
         <button
           onClick={() => (speaking ? stop() : speak(lastText, { interrupt: true }))}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-secondary text-secondary-foreground py-3.5 font-semibold min-h-12 transition-opacity active:opacity-70"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary text-foreground py-3.5 text-sm font-semibold min-h-12 border border-border transition-opacity active:opacity-70"
         >
-          <Volume2 className="size-5" />
+          <Volume2 className="size-4" />
           {speaking ? "Stop speaking" : "Repeat aloud"}
         </button>
       </div>
